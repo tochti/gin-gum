@@ -2,6 +2,7 @@ package gumtest
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -11,11 +12,7 @@ import (
 
 func TestTestSession(t *testing.T) {
 	exp := time.Now().Add(1 * time.Hour)
-	s := TestSession{
-		token:   "123",
-		userID:  "12",
-		expires: exp,
-	}
+	s := NewTestSession("123", "12", exp)
 
 	if s.Token() != "123" {
 		t.Fatalf("Expect 123 was %v", s.Token())
@@ -30,7 +27,7 @@ func TestTestSession(t *testing.T) {
 	}
 }
 
-func TestTestHandler(t *testing.T) {
+func TestServeHTTP(t *testing.T) {
 	handlerDone := false
 
 	th := func(c *gin.Context) {
@@ -56,6 +53,45 @@ func TestTestHandler(t *testing.T) {
 	r.GET("/:id", th)
 
 	NewRouter(r).ServeHTTP("GET", "/1", "body")
+
+	if !handlerDone {
+		t.Fatal("Expect to successfully run test handler")
+	}
+}
+
+func TestServeHTTPWithHeader(t *testing.T) {
+	handlerDone := false
+
+	th := func(c *gin.Context) {
+		if id := c.Param("id"); id != "1" {
+			t.Fatalf("Expect 1 was %v", id)
+		}
+
+		body := make([]byte, 4)
+		_, err := c.Request.Body.Read(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if string(body) != "body" {
+			t.Fatal("Expect body was", body)
+		}
+
+		tmp := c.Request.Header.Get("X-FOO")
+		if tmp != "Bar" {
+			t.Fatal("Expect X-FOO to be Bar was", tmp)
+		}
+
+		handlerDone = true
+	}
+
+	gin.SetMode(gin.ReleaseMode)
+	r := gin.New()
+	r.GET("/:id", th)
+
+	head := http.Header{}
+	head.Add("X-FOO", "Bar")
+	NewRouter(r).ServeHTTPWithHeader("GET", "/1", "body", head)
 
 	if !handlerDone {
 		t.Fatal("Expect to successfully run test handler")

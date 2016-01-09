@@ -39,6 +39,14 @@ type (
 	}
 )
 
+func NewTestSession(t, i string, e time.Time) TestSession {
+	return TestSession{
+		token:   t,
+		userID:  i,
+		expires: e,
+	}
+}
+
 func (s TestSession) Token() string {
 	return s.token
 }
@@ -49,6 +57,10 @@ func (s TestSession) UserID() string {
 
 func (s TestSession) Expires() time.Time {
 	return s.expires
+}
+
+func NewRouter(r *gin.Engine) *TestRouter {
+	return &TestRouter{r}
 }
 
 // Perform a Request for a given gin router.
@@ -63,8 +75,17 @@ func (t *TestRouter) ServeHTTP(method, path, body string) *httptest.ResponseReco
 	return w
 }
 
-func NewRouter(r *gin.Engine) *TestRouter {
-	return &TestRouter{r}
+// Perform a Request for a given gin router.
+func (t *TestRouter) ServeHTTPWithHeader(method, path, body string, header http.Header) *httptest.ResponseRecorder {
+	buf := bytes.NewBufferString(body)
+	req, _ := http.NewRequest(method, path, buf)
+	req.Header = header
+
+	w := httptest.NewRecorder()
+
+	t.Router.ServeHTTP(w, req)
+
+	return w
 }
 
 // Helper for testing handlers which requires authentication.
