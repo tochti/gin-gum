@@ -7,10 +7,6 @@ import (
 	"strconv"
 )
 
-var (
-	UserTable = "User"
-)
-
 type (
 	StoreUser interface {
 		ID() string
