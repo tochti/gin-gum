@@ -167,5 +167,9 @@ func Signer(c *gin.Context, s s2tore.SessionStore, u UserStore) {
 	}
 	http.SetCookie(c.Writer, &cookie)
 
-	c.JSON(http.StatusAccepted, session)
+	c.JSON(http.StatusAccepted, Session{
+		Token:   session.Token(),
+		UserID:  session.UserID(),
+		Expires: session.Expires(),
+	})
 }

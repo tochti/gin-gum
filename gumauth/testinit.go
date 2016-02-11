@@ -44,7 +44,7 @@ func initTestDB(t *testing.T) *gorp.DbMap {
 		t.Fatal(err)
 	}
 
-	err = db.CreateTables()
+	err = db.CreateTablesIfNotExists()
 	if err != nil {
 		t.Fatal(err)
 	}

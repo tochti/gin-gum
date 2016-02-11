@@ -2,6 +2,7 @@ package gumauth
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -44,7 +45,7 @@ func Test_SQLNewUserAlreadyExists(t *testing.T) {
 
 func Test_POST_User_OK(t *testing.T) {
 	db := initTestDB(t)
-	user := fillTestDB(t, db)
+	user := newTestUser()
 
 	r := gin.New()
 	r.POST("/", CreateUserSQL(db.Db))
@@ -60,14 +61,24 @@ func Test_POST_User_OK(t *testing.T) {
 	`
 
 	resp := gumtest.NewRouter(r).ServeHTTP("POST", "/", body)
+	if resp.Code != http.StatusCreated {
+		t.Fatalf("Expect %v was %v", http.StatusCreated, resp.Code)
+	}
 
-	expectResp := gumtest.JSONResponse{http.StatusCreated, user}
-
-	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+	respUser := User{}
+	err := json.Unmarshal(resp.Body.Bytes(), &respUser)
+	if err != nil {
 		t.Fatal(err)
 	}
-}
 
+	if user.Username != respUser.Username ||
+		user.Email != respUser.Email ||
+		user.FirstName != respUser.FirstName ||
+		user.LastName != respUser.LastName {
+		t.Fatalf("Expect %v was %v", user, respUser)
+	}
+
+}
 func Test_SignIn_OK(t *testing.T) {
 	user := User{
 		ID:       1,
@@ -76,14 +87,7 @@ func Test_SignIn_OK(t *testing.T) {
 	}
 
 	userStore := TestUserStore{user}
-
-	testSess := gumtest.NewTestSession(
-		"123",
-		user.Username,
-		time.Now().Add(1*time.Hour),
-	)
-
-	sessStore := TestSessionStore{testSess}
+	sessStore := TestSessionStore{}
 
 	r := gin.New()
 	h := SignIn(sessStore, userStore)
@@ -95,14 +99,23 @@ func Test_SignIn_OK(t *testing.T) {
 	url := fmt.Sprintf("/%v/%v", name, pass)
 	resp := gumtest.NewRouter(r).ServeHTTP("GET", url, "")
 
-	expectResp := gumtest.JSONResponse{http.StatusAccepted, testSess}
-
-	if err := gumtest.EqualJSONResponse(expectResp, resp); err != nil {
+	respSess := Session{}
+	if err := json.Unmarshal(resp.Body.Bytes(), &respSess); err != nil {
 		t.Fatal(err)
 	}
 
-	err := validSignInCookie(resp)
-	if err != nil {
+	if resp.Code != http.StatusAccepted {
+		t.Fatalf("Expect %v was %v", resp.Code, http.StatusAccepted)
+	}
+
+	if respSess.Token != "1234" {
+		t.Fatalf("Expect %v was %v", "1234", respSess.Token)
+	}
+	if respSess.UserID != "1" {
+		t.Fatalf("Expect %v was %v", "1", respSess.UserID)
+	}
+
+	if err := validSignInCookie(resp); err != nil {
 		t.Fatal(err)
 	}
 
@@ -156,7 +169,7 @@ func validSignInCookie(r *httptest.ResponseRecorder) error {
 
 func newTestUser() User {
 	return User{
-		Username:  "devilcXX",
+		Username:  "devilXX",
 		Password:  "123",
 		FirstName: "Dare",
 		LastName:  "Devil",
