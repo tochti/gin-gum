@@ -36,7 +36,7 @@ func TestAddTablesGorp(t *testing.T) {
 		Db: db,
 		Dialect: gorp.MySQLDialect{
 			"UTF8",
-			"InnonDB",
+			"InnoDB",
 		},
 	}
 
